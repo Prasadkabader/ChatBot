@@ -1,104 +1,107 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useParams, useNavigate } from "react-router-dom";
 import { getProject, getPrompts, createPrompt } from "../services/api";
 import ChatWindow from "../components/ChatWindow";
+import PromptSidebar from "../components/PromptSidebar";
 
-export default function Project({ projectId }) {
+export default function Project() {
+  const { projectId } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [prompts, setPrompts] = useState([]);
-  const [promptTitle, setPromptTitle] = useState("");
-  const [promptTemplate, setPromptTemplate] = useState("");
   const [selectedPrompt, setSelectedPrompt] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProject = async () => {
-      const res = await getProject(projectId);
-      setProject(res.data);
-    };
-
-    const fetchPrompts = async () => {
-      const res = await getPrompts(projectId);
-      setPrompts(res.data);
-    };
-
-    fetchProject();
-    fetchPrompts();
+    fetchProjectData();
   }, [projectId]);
 
-  const handleCreatePrompt = async () => {
-    if (!promptTitle || !promptTemplate) return;
-
-    const res = await createPrompt(projectId, {
-      title: promptTitle,
-      role: "system", // default role, can be extended
-      template: promptTemplate,
-      variables: {},
-    });
-
-    setPrompts([...prompts, res.data]);
-    setPromptTitle("");
-    setPromptTemplate("");
+  const fetchProjectData = async () => {
+    try {
+      setLoading(true);
+      const [projectRes, promptsRes] = await Promise.all([
+        getProject(projectId),
+        getPrompts(projectId)
+      ]);
+      
+      setProject(projectRes.data);
+      setPrompts(promptsRes.data);
+    } catch (error) {
+      console.error("Failed to fetch project data:", error);
+      navigate("/dashboard");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!project) return <div>Loading...</div>;
+  const handleCreatePrompt = async (promptData) => {
+    try {
+      const res = await createPrompt(projectId, promptData);
+      setPrompts([...prompts, res.data]);
+      return res.data;
+    } catch (error) {
+      console.error("Failed to create prompt:", error);
+      throw error;
+    }
+  };
 
-  return (
-    <div className="flex h-screen">
-      {/* Sidebar: Prompts */}
-      <div className="w-1/4 border-r p-4 overflow-y-auto bg-gray-50">
-        <h2 className="font-bold text-lg mb-4">{project.name} Prompts</h2>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full"
+        />
+      </div>
+    );
+  }
 
-        {/* List existing prompts */}
-        <div className="mb-4">
-          {prompts.map((p) => (
-            <div
-              key={p.id}
-              className={`p-2 mb-2 rounded cursor-pointer ${
-                selectedPrompt?.id === p.id ? "bg-blue-200" : "bg-white"
-              } hover:bg-blue-100`}
-              onClick={() => setSelectedPrompt(p)}
-            >
-              {p.title}
-            </div>
-          ))}
-        </div>
-
-        {/* Add new prompt */}
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Add New Prompt</h3>
-          <input
-            type="text"
-            placeholder="Title"
-            className="border rounded px-2 py-1 mb-2 w-full"
-            value={promptTitle}
-            onChange={(e) => setPromptTitle(e.target.value)}
-          />
-          <textarea
-            placeholder="Template"
-            className="border rounded px-2 py-1 mb-2 w-full"
-            value={promptTemplate}
-            onChange={(e) => setPromptTemplate(e.target.value)}
-          />
+  if (!project) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-white text-center">
+          <h2 className="text-2xl font-bold mb-2">Project not found</h2>
           <button
-            className="bg-green-500 hover:bg-green-700 text-white px-4 py-2 rounded w-full"
-            onClick={handleCreatePrompt}
+            onClick={() => navigate("/dashboard")}
+            className="text-blue-400 hover:text-blue-300"
           >
-            Add Prompt
+            Return to Dashboard
           </button>
         </div>
       </div>
+    );
+  }
 
-      {/* Chat Area */}
-      <div className="flex-1 p-4">
-        {selectedPrompt ? (
-          <div className="h-full flex flex-col">
-            <h3 className="font-bold text-lg mb-2">{selectedPrompt.title}</h3>
-            <ChatWindow projectId={project.id} promptId={selectedPrompt.id} />
-          </div>
-        ) : (
-          <div className="text-gray-500 text-center mt-20">
-            Select a prompt to start chatting
-          </div>
-        )}
+  return (
+    <div className="min-h-screen pt-20">
+      <div className="max-w-7xl mx-auto h-[calc(100vh-5rem)] flex">
+        {/* Sidebar */}
+        <div className="w-80 border-r border-white/20">
+          <PromptSidebar
+            project={project}
+            prompts={prompts}
+            selectedPrompt={selectedPrompt}
+            onSelectPrompt={setSelectedPrompt}
+            onCreatePrompt={handleCreatePrompt}
+          />
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="h-full"
+          >
+            <ChatWindow
+              projectId={project.id}
+              promptId={selectedPrompt?.id}
+              projectName={project.name}
+            />
+          </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -1,40 +1,39 @@
 import os
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Load Gemini API key from environment
-GEMINI_API_KEY = os.getenv("AIzaSyB4ywb8Odgxg2CY7TJD9qvmI_MayPfy7oQ")  # Make sure your .env has it
-
-BASE_URL = "https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generate"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyB4ywb8Odgxg2CY7TJD9qvmI_MayPfy7oQ")
 
 def send_message_to_llm(messages, model="text-bison-001"):
     """
-    Sends messages to Gemini API and returns the generated response.
-    messages: list of {"role": "user"/"system", "content": "..."}
+    Sends messages to a mock LLM API and returns a generated response.
+    For demo purposes, this returns a simple response.
+    Replace with actual Gemini API integration.
     """
-    # Construct prompt text by concatenating messages
-    prompt_text = ""
-    for msg in messages:
-        if msg["role"] == "system":
-            prompt_text += f"[System]: {msg['content']}\n"
-        else:
-            prompt_text += f"[User]: {msg['content']}\n"
-
-    payload = {
-        "prompt": prompt_text,
-        "temperature": 0.7,
-        "maxOutputTokens": 1024
-    }
-
-    headers = {
-        "Authorization": f"Bearer {GEMINI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    response = requests.post(BASE_URL, json=payload, headers=headers)
-
-    if response.status_code == 200:
-        data = response.json()
-        # Gemini response text is usually in data['candidates'][0]['content']
-        return {"response": data.get("candidates", [{}])[0].get("content", "")}
-    else:
-        return {"error": response.text}
+    try:
+        # Mock response for demo - replace with actual API call
+        user_message = ""
+        for msg in messages:
+            if msg["role"] == "user":
+                user_message = msg["content"]
+                break
+        
+        # Simple mock response
+        mock_responses = [
+            f"I understand you're asking about: {user_message}. This is a helpful response from the AI assistant.",
+            f"Thank you for your question about {user_message}. Here's what I can help you with...",
+            f"Based on your message '{user_message}', I can provide you with detailed information and assistance.",
+            "I'm here to help! Let me provide you with a comprehensive response to your query.",
+            "That's an interesting question! Let me break this down for you step by step."
+        ]
+        
+        import random
+        response = random.choice(mock_responses)
+        
+        return {"response": response}
+        
+    except Exception as e:
+        return {"response": f"I apologize, but I encountered an error: {str(e)}. Please try again."}

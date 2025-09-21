@@ -5,7 +5,7 @@ from app import database, schemas, crud, llm
 router = APIRouter()
 get_db = database.get_db
 
-@router.post("/{project_id}")
+@router.post("/{project_id}", response_model=schemas.ChatResponse)
 def chat_with_project(
     project_id: int,
     request: schemas.ChatRequest,
@@ -31,4 +31,4 @@ def chat_with_project(
     gemini_response = llm.send_message_to_llm(messages, model=project.model or "text-bison-001")
 
     # Return only the response text
-    return {"response": gemini_response.get("response", "")}
+    return {"response": gemini_response.get("response", "Sorry, I couldn't generate a response.")}
